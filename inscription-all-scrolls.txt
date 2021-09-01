@@ -1,0 +1,35 @@
+// LastSpell - F9
+
+for #i 1 8 1
+    for #j 1 8 1
+        call writeScroll #i #j
+    end_for
+end_for
+stop_script
+
+proc writeScroll #circle #n
+    call openCircle #circle
+    call craftMenuSelect #n
+    wait 3700
+end_proc
+
+proc openCircle #circle
+    set lastSkill 23
+    send {F9}
+    wait 700
+    call craftMenuSelect #circle
+    wait 700
+end_proc
+
+proc craftMenuSelect #option
+    while #option > 5
+        move 265 68
+        left 265 68
+        set #option #option - 1
+        wait 600
+    end_while
+    set #x (17 + 44 * #option)
+    set #y 68
+    move #x #y
+    double_left #x #y
+end_proc

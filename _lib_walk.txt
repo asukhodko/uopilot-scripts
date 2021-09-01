@@ -1,0 +1,234 @@
+//log open
+//log clear
+
+// test walkStep:
+//call walkStep 4
+
+// test walkDir:
+//call walkDir 4 1
+
+// test walkBy:
+//call walkBy 0 1
+
+// test walkTo:
+call walkTo 2466 94
+
+stop_script
+
+// include _lib_walk.txt
+proc walkTo #targetX #targetY #maxDeviation
+    set size(%deadends) // массив тупиков
+    set #doWalk 1
+    set #isFirst 1
+    while #doWalk = 1
+        set #dx #targetX - charPosX
+        set #dy #targetY - charPosY
+        if (abs(#dx) <= 2 and abs(#dy) <= 2 and #isFirst = 0) or (#dx = 0 and #dy = 0) or (abs(#dx) <= #maxDeviation and abs(#dy) <= #maxDeviation)
+            // пришли.
+            set #doWalk 0
+            // на случай, если пришли не точно или проскачили, то сделаем ещё пару попыток
+            repeat 3
+                set #dx #targetX - charPosX
+                set #dy #targetY - charPosY
+                if (#dx <> 0 or #dy <> 0) and (abs(#dx) > #maxDeviation or abs(#dy) > #maxDeviation)
+                    call walkBy #dx #dy
+                    wait 1000
+                else
+                    break
+                end_if
+            end_repeat
+        else
+            set #lastX charPosX
+            set #lastY charPosY
+            call walkBy #dx #dy
+            set #lastDir $walkBy
+            // Если не сдвинулись, то идём в другие стороны.
+            // При повторном заходе в тот же тупик увеличивать количество шагов при обходе.
+            // Затем снова идём в нужную сторону.
+            set #stucks 0
+            while #lastX = charPosX and #lastY = charPosY
+                // Ищем текущее место среди тупиков
+                set #deadendNum 1
+                set #sz size(%deadends)
+                while #deadendNum <= #sz
+                    if %deadends[#deadendNum 1] = charPosX and %deadends[#deadendNum 2] = charPosY
+                        set #stucks %deadends[#deadendNum 3]
+                        break
+                    end_if
+                    set #deadendNum #deadendNum + 1
+                end_while
+                set #stucks #stucks + 1
+                // Сохраняем тупик
+                set %deadends[#deadendNum 1] charPosX
+                set %deadends[#deadendNum 2] charPosY
+                set %deadends[#deadendNum 3] #stucks
+                set #isOdd #stucks - #stucks / 2 * 2
+                if #isOdd = 1
+                    //say odd
+                    set #dir1 3
+                    set #dir2 1
+                else
+                    //say even
+                    set #dir1 5
+                    set #dir2 7
+                end_if
+
+                if #stucks < 5
+                    // Застряли несколько раз, пробуем обычную процедуру обхода
+                    set #outSteps (#stucks + 1) / 2 * 2 * 3 / 2
+                    set #dir #lastDir + #dir1
+                    if #dir >= 8
+                        set #dir #dir - 8
+                    end_if
+                    call walkDir #dir #outSteps
+
+                    set #dir #lastDir + #dir2
+                    if #dir >= 8
+                        set #dir #dir - 8
+                    end_if
+                    call walkDir #dir #outSteps
+                else
+                    // Застряли много раз. Ходим в случайные стороны - может выберемся.
+                    set #steps random(6) + 2
+                    call walkOut #steps
+                    set #steps random(6) + 2
+                    call walkOut #steps
+                end_if
+
+                set #dx #targetX - charPosX
+                set #dy #targetY - charPosY
+                call walkBy #dx #dy
+            end_while
+            if #stucks > 0
+                //say released
+            end_if
+            set #isFirst 0
+        end_if
+    end_while
+end_proc
+
+proc walkBy #dx #dy
+    if #dx <> 0 or #dy <> 0
+        set #mx maxx(abs(#dx) abs(#dy))
+        set #mn minx(abs(#dx) abs(#dy))
+        if #mn = 0
+            // по одной координате
+            // 0->N 2->E 4->S 6->W
+            if #dy < 0
+                set #dir 0
+            end_if
+            if #dx > 0
+                set #dir 2
+            end_if
+            if #dy > 0
+                set #dir 4
+            end_if
+            if #dx < 0
+                set #dir 6
+            end_if
+            set #steps #mx
+        else
+            // по двум координатам сразу
+            // 1->NE 3->SE 5->SW 7->NW
+            set #steps #mn
+            if #dy < 0 and #dx > 0
+                set #dir 1
+            end_if
+            if #dx > 0 and #dy > 0
+                set #dir 3
+            end_if
+            if #dy > 0 and #dx < 0
+                set #dir 5
+            end_if
+            if #dx < 0 and #dy < 0
+                set #dir 7
+            end_if
+        end_if
+        // Ограничим максимальное количество шагов в одном направлении, чтобы плавнее добираться до места. 
+        if #steps > 40
+            set #steps 40
+        end_if
+        call walkDir #dir #steps
+        set $result #dir
+    else
+        set $result -1
+    end_if
+end_proc
+
+proc walkDir #dir #steps
+    // Идём в заданном направлении.
+    // Если пройти не можем, то выходим.
+    set #nTry 0
+    while #steps > 0 and #nTry < 3
+        set #prevX charPosX
+        set #prevY charPosY
+        set #prevCharDir charDir
+        call walkStep #dir
+        set #notMoved 0
+        if charPosX = #prevX and charPosY = #prevY
+            // не сдвинулись
+            // ждём немного (если не менялось направление чара), вдруг ещё движемся - и перепроверяем.
+            if charDir =#prevCharDir            
+                wait 800
+            end_if
+            if charPosX = #prevX and charPosY = #prevY            
+                set #notMoved 1
+            end_if
+        end_if
+
+        if #notMoved = 1
+            set #nTry #nTry + 1
+        else
+            set #steps #steps - 1
+            set #nTry 0
+        end_if
+    end_while
+end_proc
+
+proc walkStep #dir
+    // #dir = CharDir 0->N 1->NE 2->E 3->SE 4->S 4->SW 6->W 7->NW
+    if #dir = 0 // N
+        send PageUp
+    end_if
+    if #dir = 1 // NE
+        send Right
+    end_if
+    if #dir = 2 // E
+        send PageDown
+    end_if
+    if #dir = 3 // SE
+        send Down
+    end_if
+    if #dir = 4 // S
+        send End
+    end_if
+    if #dir = 5 // SW
+        send Left
+    end_if
+    if #dir = 6 // W
+        send Home
+    end_if
+    if #dir = 7 // NW
+        send Up
+    end_if
+    wait 400
+end_proc
+
+proc walkOut #steps
+    set #dir random(8)
+    call walkDir #dir #steps
+end_proc
+
+proc walkByWayNear #maxDeviation %wayArr
+    set #arrSize size(%wayArr)
+    for #i 1 #arrSize 1
+        call walkTo %wayArr[#i 1] %wayArr[#i 2] #maxDeviation
+    end_for
+end_proc
+
+proc walkByWay %wayArr
+    set #arrSize size(%wayArr)
+    for #i 1 #arrSize 1
+        call walkTo %wayArr[#i 1] %wayArr[#i 2]
+    end_for
+end_proc

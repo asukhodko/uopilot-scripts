@@ -1,0 +1,113 @@
+// F4 - LastObject, WaitForTarget, LastTarget
+// F6 - LastObject
+
+set #tinkersToolsID 1104630586
+
+// empty potion keg = 1 Keg, 1 Barrel Tap
+// Keg = 8 Log (SE), 4 Iron Ingot
+// Barrel Tap = 2 Copper Ingot, 1 Gears
+// Gears = 2 Iron Ingot
+// Всего ресурсов: 8 Log, 6 Iron Ingot, 2 Copper Ingot
+
+init_arr %gearsMenu(1) 5 3 // Tools and Parts
+init_arr %gearsMenu(2) 5 4
+
+init_arr %barrelTapMenu(1) 5 3 // Tools and Parts
+init_arr %barrelTapMenu(2) 5 9
+
+init_arr %kegMenu(1) 5 2 // Containers
+init_arr %kegMenu(2) 5 1
+
+init_arr %potionKegMenu(1) 5 2 // Containers
+init_arr %potionKegMenu(2) 5 2
+
+repeat 50
+call craftItem #tinkersToolsID 0 %gearsMenu
+end_repeat
+repeat 54
+call craftItem #tinkersToolsID 0 %barrelTapMenu
+end_repeat
+repeat 50
+call craftItem #tinkersToolsID 0 %kegMenu
+end_repeat
+repeat 50
+call craftItem #tinkersToolsID 0 %potionKegMenu
+end_repeat
+stop_script
+
+// include _lib_craft.txt
+proc craftItem #toolID #targetID %menuItems
+    set #success 0
+    while #success = 0
+        set lastObjectID #toolID
+        if #targetID <> 0
+            set lastTargetID #targetID
+            send {F4}
+        else
+            send {F6}
+        end_if
+        wait 800
+        set #sz size(%menuItems)
+        //say sz #sz
+        for #i 1 #sz 1
+            //say i #i
+            set #menuType %menuItems[#i 1]
+            set #menuItem %menuItems[#i 2]
+            //say menuType #menuType
+            //say menuItem #menuItem
+            if #menuType = 4
+                call craftMenuSelect4 #menuItem
+            end_if
+            if #menuType = 5
+                call craftMenuSelect5 #menuItem
+            end_if
+            wait 800
+        end_for
+        set timer
+        while 1 = 1
+            wait 100
+            // Пока не работает if lastmsg
+            wait 5000
+            set #success 1
+            break
+            if lastmsg You put
+                // Успешно.
+                set #success 1
+                say success
+                break
+            end_if
+            if timer > 12000
+                // Не успешно.
+                break
+            end_if
+        end_while
+    end_while
+end_proc
+
+// Для 5-ти элементов в меню
+proc craftMenuSelect5 #option
+    while #option > 5
+        move 265 68
+        left 265 68
+        set #option #option - 1
+        wait 400
+    end_while
+    set #x (15 + 44 * #option)
+    set #y 68
+    move #x #y
+    double_left #x #y
+end_proc
+
+// Для 4-ёх элементов в меню
+proc craftMenuSelect4 #option
+    while #option > 4
+        move 265 68
+        left 265 68
+        set #option #option - 1
+        wait 400
+    end_while
+    set #x (17 + 55 * #option)
+    set #y 68
+    move #x #y
+    double_left #x #y
+end_proc

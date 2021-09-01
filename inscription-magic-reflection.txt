@@ -1,0 +1,10 @@
+// inscripting
+set lastskill 23
+send {F9}
+wait 600
+move 241, 69
+double_left 241, 69    
+wait 600
+//move 190, 66  
+double_left 190, 66     
+wait 3500

@@ -1,0 +1,35 @@
+send {F6}
+wait 700
+call craftMenuSelect4 5
+wait 700
+call craftMenuSelect5 1
+wait 3200
+
+
+// Для 5-ти элементов в меню
+proc craftMenuSelect5 #option
+    while #option > 5
+        move 265 68
+        left 265 68
+        set #option #option - 1
+        wait 600
+    end_while
+    set #x (17 + 44 * #option)
+    set #y 68
+    move #x #y
+    double_left #x #y
+end_proc
+
+// Для 4-ёх элементов в меню
+proc craftMenuSelect4 #option
+    while #option > 4
+        move 265 68
+        left 265 68
+        set #option #option - 1
+        wait 600
+    end_while
+    set #x (17 + 55 * #option)
+    set #y 68
+    move #x #y
+    double_left #x #y
+end_proc

@@ -1,0 +1,37 @@
+// mark
+set lastskill 23
+send {F9}
+wait 700
+call craftMenuSelect5 6
+wait 700
+call craftMenuSelect5 5
+wait 3500
+
+// #import _lib_craft_menu.txt
+// Для 5-ти элементов в меню
+proc craftMenuSelect5 #option
+    while #option > 5
+        move 265 68
+        left 265 68
+        set #option #option - 1
+        wait 400
+    end_while
+    set #x (17 + 44 * #option)
+    set #y 68
+    move #x #y
+    double_left #x #y
+end_proc
+
+// Для 4-ёх элементов в меню
+proc craftMenuSelect4 #option
+    while #option > 4
+        move 265 68
+        left 265 68
+        set #option #option - 1
+        wait 400
+    end_while
+    set #x (17 + 55 * #option)
+    set #y 68
+    move #x #y
+    double_left #x #y
+end_proc

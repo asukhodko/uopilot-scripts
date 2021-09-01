@@ -1,0 +1,121 @@
+call dragOre 419, 235
+stop_script
+
+proc dragOre #targetX #targetY
+    // тип руды = 6583(1), 6586(2), 8584(3), 6585(4+)
+    call dragItemsAnyColor #targetX #targetY 30 0 6585 
+    call dragItemsAnyColor #targetX #targetY 21 1 6584 
+    call dragItemsAnyColor #targetX #targetY 35 1 6586 
+    call dragItemsAnyColor #targetX #targetY 27 1 6583 
+end_proc
+
+proc dragItems #targetX #targetY #offsetX #offsetY #itemType #itemColor #containerAddr
+    while 1 = 1
+        call findItemAddr #itemType #itemColor #containerAddr
+        set #itemAddr $findItemAddr
+        if #itemAddr = 0
+            break
+        end_if
+        set #addr #itemAddr + 0x24
+        readmem #itemX #addr W
+        set #addr #itemAddr + 0x26
+        readmem #itemY #addr W
+        call getContainerX
+        set #packX $getContainerX
+        call getContainerY
+        set #packY $getContainerY
+        set #X #packX + #itemX + #offsetX
+        set #Y #packY + #itemY + #offsetY
+        //move #X #Y
+        //stop_script
+        drag #X #Y #targetX #targetY all 
+        wait 100 // пауза на всякий случай. если зациклится, то это даст возможность прервать скрипт.
+    end_while 
+end_proc
+
+proc dragItemsAnyColor #x #y #offsetX #offsetY #itemType #containerAddr
+    call dragItems #x #y #offsetX #offsetY #itemType -1 #containerAddr
+end_proc
+
+// include _lib_items.txt
+proc findItemAddr #itemType #itemColor #containerAddr
+    if #containerAddr = 0
+        call getBackpackAddr
+        set #containerAddr $getBackpackAddr
+    end_if
+    set $result 0 // на случай, если не найдётся
+    set #nextItemAddrRef #containerAddr + 0x88
+    while 1 = 1
+        readmem #itemAddr #nextItemAddrRef D
+        if #itemAddr = 0
+            break
+        end_if
+        set #addr #itemAddr + 0x80
+        readmem #foundContainerAddr #addr D
+        if #foundContainerAddr <> #containerAddr
+            // какая-то не понятная запись. идём к следующей
+            set #nextItemAddrRef #itemAddr + 0x88
+            continue
+        end_if
+
+        // нашли следующий предмет
+        set #addr #itemAddr + 0x3C
+        readmem #foundItemType #addr D
+        if #foundItemType = #itemType
+            // Нашёлся объект заданного типа
+            // Сравним цвет, если требуется
+            set #colorMatched 1
+            if #itemColor <> -1
+                set #addr #itemAddr + 0x42
+                readmem #foundItemColor #addr W
+                if #foundItemColor <> #itemColor
+                    set #colorMatched 0
+                end_if
+            end_if
+            if #colorMatched = 1
+                set $result #itemAddr
+                // break // не прерываемся, т.к. желательно найти последний объект - он будет верхним над другими.
+            end_if  
+        end_if 
+
+        set #nextItemAddrRef #itemAddr + 0x48 
+    end_while
+end_proc
+
+proc findItemAddrAnyColor #itemType #containerAddr
+    call findItemAddr #itemType -1 #containerAddr 
+    set $result $findItemAddr
+end_proc
+
+proc getBackpackAddr
+    readmem #addr 0x00CC535C D
+    set #addr #addr + 284
+    readmem #bpackAddr #addr D
+    set $result #bpackAddr
+end_proc
+
+proc getContainerX #containerAddr
+    call readOpenContainerMem #containerAddr 0x30 D
+    set $result $readOpenContainerMem
+end_proc
+
+proc getContainerY #containerAddr
+    call readOpenContainerMem #containerAddr 0x34 D
+    set $result $readOpenContainerMem
+end_proc
+
+proc readOpenContainerMem #containerAddr #offset $type
+    set $result -1
+    if #containerAddr = 0
+        call getBackpackAddr
+        set #containerAddr $getBackpackAddr
+    end_if
+    set #addr #containerAddr + 0xB0
+    readmem #openContainerAddr #addr D
+    if #openContainerAddr <> 0
+        set #addr #openContainerAddr + #offset
+        readmem #val #addr $type
+        set $result #val 
+    end_if
+end_proc
+

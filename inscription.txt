@@ -1,0 +1,24 @@
+// inscripting
+set lastskill 23
+send {F9}
+//send {F6}  
+wait 800
+move 269, 67 
+left 269, 67  
+wait 600
+left 269, 67  
+wait 600
+left 269, 67  
+wait 600
+//move 241, 69
+double_left 241, 69    
+wait 700
+if int < 120
+    //move 107, 70  
+    double_left 107, 70 // INT < 120       
+else          
+    //move 151, 67  
+    double_left 151, 67 // INT > 119      
+end_if
+wait 3700
+

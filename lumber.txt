@@ -1,0 +1,538 @@
+// Добыча древесины
+// F4 - LastObject, WaitForTarget, LastTarget
+// F6 - LastObject
+
+set #axeId 1103288232
+set #mode 2 // 1 - Метить деревья, 2 - Рубить
+set $treesFile "c:\Program Files\Ultima Online 2D\uopilot\uopilot-scripts\trees.dat"
+
+set #maxweight str * 4 + 30
+set #stopOnWeight #maxweight - 20
+
+init_arr %wayToHome(1) 2577 206
+init_arr %wayToHome(2) 2577 196
+
+init_arr %wayToForest(1) 2577 206
+
+//log clear
+//log open
+//call walkBy 0 10
+//call walkByWay %wayToForest
+//call openContainer
+//stop_script
+
+set $gonext1 Тут не осталось пригодной древесины. Нечего рубить.
+set $gonext2 You can't reach this.
+set $gonext3 It appears immune to your blow
+set $gonext4 Это слишком далеко отсюда.
+set $gonext5 You can't think of a way to use that item.
+set $gonext6 Попытайся рубить деревья...
+
+set $domore1 You put the logs in your pack.
+set $domore2 Подолбив дерево инструментом вы извлекли только бесполезные опилки...Неудача! 
+
+if #mode = 1
+    // Помечаем деревья для рубки
+    set #n 0
+    while 1 = 1
+        set #n #n + 1
+        set #lastX lastTargetX
+        set #lastY lastTargetY
+        set lastObjectId #axeId
+        send {F6}
+        while #lastX = lastTargetX and #lastY = lastTargetY
+            wait 300
+        end_while
+        set %trees[#n 1] lastStaticType
+        set %trees[#n 2] lastTargetX
+        set %trees[#n 3] lastTargetY
+        set %trees[#n 4] lastTargetZ
+        save_array %trees $treesFile
+        say #n
+    end_while
+else
+    // Рубим
+    load_array %trees $treesFile
+    set #szTrees size(%trees)
+    set #n 1
+    call openContainer // Откроем пак, а то топор может не найтись
+    while 1 = 1
+        set #sz size(%wayToHome)
+        if wght >= #stopOnWeight or (charPosX = %wayToHome[#sz 1] and charPosY = %wayToHome[#sz 2])
+            // Набрали предельный вес
+            // Идём домой, выгружаемся, идём рубить
+            if charPosX <> %wayToHome[#sz 1] or charPosY <> %wayToHome[#sz 2] 
+                call walkByWay %wayToHome
+            end_if
+            call unloading
+            call walkByWayNear 2 %wayToForest
+        end_if
+        set #dx %trees[#n 2] - charPosX
+        set #dy %trees[#n 3] - charPosY
+        set #dx abs(#dx)
+        set #dy abs(#dy)
+        if #dx > 2 or #dy > 2
+            call walkTo %trees[#n 2] %trees[#n 3] 2
+        end_if
+        set lastObjectId #axeId
+        set lastTargetKind 3
+        set lastStaticType %trees[#n 1]
+        set lastTargetX %trees[#n 2]
+        set lastTargetY %trees[#n 3]
+        send {F4}
+        set timer
+        while 1 = 1
+            wait 100
+            if lastmsg = $gonext1 or lastmsg = $gonext2 or lastmsg = $gonext3 or lastmsg = $gonext4 or lastmsg = $gonext5 or lastmsg = $gonext6
+                // идём к следующему дереву
+                set #n #n + 1
+                if #n > #szTrees
+                    set #n 1
+                end_if
+                break
+            end_if
+            if (lastmsg = $domore1) or (lastmsg = $domore2) or timer > 12000
+                // Надо продолжать пытаться в этом месте
+                if timer < 1000
+                    wait 7000
+                end_if
+                break
+            end_if
+        end_while
+    end_while
+end_if
+
+proc unloading
+    // Откроем пак и подвинем его, чтоб не загораживал 
+    call moveContainerTo 0 480
+
+    call dragLogs 348, 166 // 640x480
+    //call dragLogs 427, 230 // 800x600
+end_proc
+
+/// include _lib_items.txt
+// F6 - LastObject
+proc dragScrolls #targetX #targetY
+    // тип скроллов = 7981-8041
+    for #t 7981 8041 1
+        //call dragItemsAnyColor #targetX #targetY 10 1 #t
+        //call dragItemsAnyColor #targetX #targetY 9 1 #t
+        //call dragItemsAnyColor #targetX #targetY 16 3 #t
+        //call dragItemsAnyColor #targetX #targetY 23 3 #t
+        call dragItemsAnyColor #targetX #targetY 23 7 #t 0 1
+    end_for
+end_proc
+
+proc dragLogs #targetX #targetY
+    // тип логов = 7133
+    call dragItemsAnyColor #targetX #targetY 18 1 7133 0 1
+end_proc
+
+proc dragIngots #targetX #targetY #color #stopOnFirst
+    // тип слитков = 7154, 7142(Copper), 7160(Silver), 7148(Gold), 3982(Crystal)
+    call dragItems #targetX #targetY 17 1 7154 #color 0 #stopOnFirst 
+    call dragItems #targetX #targetY 17 1 7142 #color 0 #stopOnFirst
+    call dragItems #targetX #targetY 17 1 7160 #color 0 #stopOnFirst
+    call dragItems #targetX #targetY 17 1 7148 #color 0 #stopOnFirst
+    call dragItems #targetX #targetY 14 1 3982 #color 0 #stopOnFirst
+end_proc
+
+proc dragIngotsAnyColor #targetX #targetY #stopOnFirst
+    call dragIngots #targetX #targetY -1 #stopOnFirst
+end_proc
+
+proc dragOre #targetX #targetY #color #stopOnFirst
+    // тип руды = 6583(1), 6586(2), 6584(3), 6585(4+)
+    call dragItems #targetX #targetY 30 0 6585 #color 0 #stopOnFirst
+    call dragItems #targetX #targetY 21 1 6584 #color 0 #stopOnFirst
+    call dragItems #targetX #targetY 35 1 6586 #color 0 #stopOnFirst
+    call dragItems #targetX #targetY 27 1 6583 #color 0 #stopOnFirst
+end_proc
+
+proc dragOreAnyColor #targetX #targetY #stopOnFirst
+    call dragOre #targetX #targetY -1 #stopOnFirst
+end_proc
+
+proc findItemId #itemType #color #containerAddr #tryFindLast
+    set $result 0
+    set #stopOnFirst 1 - #tryFindLast
+    call findItemAddr #itemType #color #containerAddr #stopOnFirst
+    set #itemAddr $findItemAddr
+    if #itemAddr <> 0
+        set #addr #itemAddr + 0x7C // ID
+        readmem #itemID #addr D
+        set $result #itemID
+    end_if
+end_proc
+
+proc findItemIdAnyColor #itemType #tryFindLast
+    call findItemId #itemType -1 #tryFindLast
+    set $result $findItemId 
+end_proc
+
+proc dragItems #targetX #targetY #offsetX #offsetY #itemType #itemColor #containerAddr #stopOnFirst
+    while 1 = 1
+        call findItemAddr #itemType #itemColor #containerAddr #stopOnFirst
+        set #itemAddr $findItemAddr
+        if #itemAddr = 0
+            break
+        end_if
+        set #addr #itemAddr + 0x24
+        readmem #itemX #addr W
+        set #addr #itemAddr + 0x26
+        readmem #itemY #addr W
+        call getContainerX
+        set #packX $getContainerX
+        call getContainerY
+        set #packY $getContainerY
+        set #X #packX + #itemX + #offsetX
+        set #Y #packY + #itemY + #offsetY
+        //if #itemType = 7133
+        //    move #X #Y
+        //    pause_script
+        //end_if
+        drag #X #Y #targetX #targetY all 
+        wait 100 // пауза на всякий случай. если зациклится, то это даст возможность прервать скрипт.
+    end_while 
+end_proc
+
+proc dragItemsAnyColor #x #y #offsetX #offsetY #itemType #containerAddr #stopOnFirst
+    call dragItems #x #y #offsetX #offsetY #itemType -1 #containerAddr #stopOnFirst
+end_proc
+
+proc findItemAddr #itemType #itemColor #containerAddr #stopOnFirst
+    if #containerAddr = 0
+        call getBackpackAddr
+        set #containerAddr $getBackpackAddr
+    end_if
+    set $result 0 // на случай, если не найдётся
+    set #nextItemAddrRef #containerAddr + 0x88
+    while 1 = 1
+        readmem #itemAddr #nextItemAddrRef D
+        if #itemAddr = 0
+            break
+        end_if
+        set #addr #itemAddr + 0x80
+        readmem #foundContainerAddr #addr D
+        if #foundContainerAddr <> #containerAddr
+            // какая-то не понятная запись. идём к следующей
+            set #nextItemAddrRef #itemAddr + 0x88
+            continue
+        end_if
+
+        // нашли следующий предмет
+        set #addr #itemAddr + 0x3C
+        readmem #foundItemType #addr W
+        if #foundItemType = #itemType
+            // Нашёлся объект заданного типа
+            // Сравним цвет, если требуется
+            set #colorMatched 1
+            if #itemColor <> -1
+                set #addr #itemAddr + 0x42
+                readmem #foundItemColor #addr W
+                if #foundItemColor <> #itemColor
+                    set #colorMatched 0
+                end_if
+            end_if
+            if #colorMatched = 1
+                set $result #itemAddr
+                if #stopOnFirst = 1
+                   break // не прерываемся, если не увтановлено #stopOnFirst, т.к. желательно найти последний объект - он будет верхним над другими.
+                end_if
+            end_if  
+        end_if 
+
+        set #nextItemAddrRef #itemAddr + 0x48 
+    end_while
+end_proc
+
+proc findItemAddrAnyColor #itemType #containerAddr #stopOnFirst
+    call findItemAddr #itemType -1 #containerAddr #stopOnFirst
+    set $result $findItemAddr
+end_proc
+
+proc getBackpackAddr
+    readmem #addr 0x00CC535C D
+    set #addr #addr + 284
+    readmem #bpackAddr #addr D
+    set $result #bpackAddr
+end_proc
+
+proc openContainer #containerAddr
+    if #containerAddr = 0
+        call getBackpackAddr
+        set #containerAddr $getBackpackAddr
+    end_if
+    set #addr #containerAddr + 0x7C
+    readmem #bpackID #addr D
+    set lastObjectId #bpackID
+    send {F6}
+    wait 700
+end_proc
+
+proc moveContainerTo #x #y #containerAddr
+    call openContainer #containerAddr
+    call getContainerX #containerAddr
+    set #contX $getContainerX
+    call getContainerY #containerAddr
+    set #contY $getContainerY
+    
+    set #dx 50
+    set #dy 10
+    
+    set #contX #contX + #dx
+    set #contY #contY + #dy
+    
+    set #x #x + #dx
+    set #y #y + #dy
+
+    left_down #contX #contY
+    wait 500
+    move #x #y
+    wait 300
+    left_up #x #y
+    wait 500
+end_proc
+
+proc getContainerX #containerAddr
+    call readOpenContainerMem #containerAddr 0x30 D
+    set $result $readOpenContainerMem
+end_proc
+
+proc getContainerY #containerAddr
+    call readOpenContainerMem #containerAddr 0x34 D
+    set $result $readOpenContainerMem
+end_proc
+
+proc readOpenContainerMem #containerAddr #offset $type
+    set $result -1
+    if #containerAddr = 0
+        call getBackpackAddr
+        set #containerAddr $getBackpackAddr
+    end_if
+    set #addr #containerAddr + 0xB0
+    readmem #openContainerAddr #addr D
+    if #openContainerAddr <> 0
+        set #addr #openContainerAddr + #offset
+        readmem #val #addr $type
+        set $result #val 
+    end_if
+end_proc
+
+/// include _lib_walk.txt
+proc walkTo #targetX #targetY #maxDeviation
+    set size(%deadends) // массив тупиков
+    set #doWalk 1
+    set #isFirst 1
+    while #doWalk = 1
+        set #dx #targetX - charPosX
+        set #dy #targetY - charPosY
+        if (abs(#dx) <= 2 and abs(#dy) <= 2 and #isFirst = 0) or (#dx = 0 and #dy = 0) or (abs(#dx) <= #maxDeviation and abs(#dy) <= #maxDeviation)
+            // пришли.
+            set #doWalk 0
+            // на случай, если пришли не точно или проскачили, то сделаем ещё пару попыток
+            repeat 3
+                set #dx #targetX - charPosX
+                set #dy #targetY - charPosY
+                if (#dx <> 0 or #dy <> 0) and (abs(#dx) > #maxDeviation or abs(#dy) > #maxDeviation)
+                    call walkBy #dx #dy
+                    wait 1000
+                else
+                    break
+                end_if
+            end_repeat
+        else
+            set #lastX charPosX
+            set #lastY charPosY
+            call walkBy #dx #dy
+            set #lastDir $walkBy
+            // Если не сдвинулись, то идём в другие стороны.
+            // При повторном заходе в тот же тупик увеличивать количество шагов при обходе.
+            // Затем снова идём в нужную сторону.
+            set #stucks 0
+            while #lastX = charPosX and #lastY = charPosY
+                // Ищем текущее место среди тупиков
+                set #deadendNum 1
+                set #sz size(%deadends)
+                while #deadendNum <= #sz
+                    if %deadends[#deadendNum 1] = charPosX and %deadends[#deadendNum 2] = charPosY
+                        set #stucks %deadends[#deadendNum 3]
+                        break
+                    end_if
+                    set #deadendNum #deadendNum + 1
+                end_while
+                set #stucks #stucks + 1
+                // Сохраняем тупик
+                set %deadends[#deadendNum 1] charPosX
+                set %deadends[#deadendNum 2] charPosY
+                set %deadends[#deadendNum 3] #stucks
+                set #isOdd #stucks - #stucks / 2 * 2
+                if #isOdd = 1
+                    //say odd
+                    set #dir1 3
+                    set #dir2 1
+                else
+                    //say even
+                    set #dir1 5
+                    set #dir2 7
+                end_if
+
+                if #stucks < 5
+                    // Застряли несколько раз, пробуем обычную процедуру обхода
+                    set #outSteps (#stucks + 1) / 2 * 2 * 3 / 2
+                    set #dir #lastDir + #dir1
+                    if #dir >= 8
+                        set #dir #dir - 8
+                    end_if
+                    call walkDir #dir #outSteps
+
+                    set #dir #lastDir + #dir2
+                    if #dir >= 8
+                        set #dir #dir - 8
+                    end_if
+                    call walkDir #dir #outSteps
+                else
+                    // Застряли много раз. Ходим в случайные стороны - может выберемся.
+                    set #steps random(6) + 2
+                    call walkOut #steps
+                    set #steps random(6) + 2
+                    call walkOut #steps
+                end_if
+
+                set #dx #targetX - charPosX
+                set #dy #targetY - charPosY
+                call walkBy #dx #dy
+            end_while
+            if #stucks > 0
+                //say released
+            end_if
+            set #isFirst 0
+        end_if
+    end_while
+end_proc
+
+proc walkBy #dx #dy
+    if #dx <> 0 or #dy <> 0
+        set #mx maxx(abs(#dx) abs(#dy))
+        set #mn minx(abs(#dx) abs(#dy))
+        if #mn = 0
+            // по одной координате
+            // 0->N 2->E 4->S 6->W
+            if #dy < 0
+                set #dir 0
+            end_if
+            if #dx > 0
+                set #dir 2
+            end_if
+            if #dy > 0
+                set #dir 4
+            end_if
+            if #dx < 0
+                set #dir 6
+            end_if
+            set #steps #mx
+        else
+            // по двум координатам сразу
+            // 1->NE 3->SE 5->SW 7->NW
+            set #steps #mn
+            if #dy < 0 and #dx > 0
+                set #dir 1
+            end_if
+            if #dx > 0 and #dy > 0
+                set #dir 3
+            end_if
+            if #dy > 0 and #dx < 0
+                set #dir 5
+            end_if
+            if #dx < 0 and #dy < 0
+                set #dir 7
+            end_if
+        end_if
+        // Ограничим максимальное количество шагов в одном направлении, чтобы плавнее добираться до места. 
+        if #steps > 40
+            set #steps 40
+        end_if
+        call walkDir #dir #steps
+        set $result #dir
+    else
+        set $result -1
+    end_if
+end_proc
+
+proc walkDir #dir #steps
+    // Идём в заданном направлении.
+    // Если пройти не можем, то выходим.
+    set #nTry 0
+    while #steps > 0 and #nTry < 3
+        set #prevX charPosX
+        set #prevY charPosY
+        set #prevCharDir charDir
+        call walkStep #dir
+        set #notMoved 0
+        if charPosX = #prevX and charPosY = #prevY
+            // не сдвинулись
+            // ждём немного (если не менялось направление чара), вдруг ещё движемся - и перепроверяем.
+            if charDir =#prevCharDir            
+                wait 800
+            end_if
+            if charPosX = #prevX and charPosY = #prevY            
+                set #notMoved 1
+            end_if
+        end_if
+
+        if #notMoved = 1
+            set #nTry #nTry + 1
+        else
+            set #steps #steps - 1
+            set #nTry 0
+        end_if
+    end_while
+end_proc
+
+proc walkStep #dir
+    // #dir = CharDir 0->N 1->NE 2->E 3->SE 4->S 4->SW 6->W 7->NW
+    if #dir = 0 // N
+        send PageUp
+    end_if
+    if #dir = 1 // NE
+        send Right
+    end_if
+    if #dir = 2 // E
+        send PageDown
+    end_if
+    if #dir = 3 // SE
+        send Down
+    end_if
+    if #dir = 4 // S
+        send End
+    end_if
+    if #dir = 5 // SW
+        send Left
+    end_if
+    if #dir = 6 // W
+        send Home
+    end_if
+    if #dir = 7 // NW
+        send Up
+    end_if
+    wait 400
+end_proc
+
+proc walkOut #steps
+    set #dir random(8)
+    call walkDir #dir #steps
+end_proc
+
+proc walkByWayNear #maxDeviation %wayArr
+    set #arrSize size(%wayArr)
+    for #i 1 #arrSize 1
+        call walkTo %wayArr[#i 1] %wayArr[#i 2] #maxDeviation
+    end_for
+end_proc
+
+proc walkByWay %wayArr
+    set #arrSize size(%wayArr)
+    for #i 1 #arrSize 1
+        call walkTo %wayArr[#i 1] %wayArr[#i 2]
+    end_for
+end_proc
