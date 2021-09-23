@@ -5,6 +5,7 @@
 set #axeId 1103288233
 set #mode 2 // 1 - Метить деревья, 2 - Рубить
 set $treesFile "c:\Oskom UO\!Патчи для игры\Программы\UOPilot\Scripts\trees2.dat"
+set #hiding 1 // 1 - прятаться, 2 - нет
 
 set #maxweight str * 4 + 30
 set #stopOnWeight #maxweight - 20
@@ -13,6 +14,8 @@ init_arr %wayToHome(1) 2013 767
 init_arr %wayToHome(2) 1974 772
 
 init_arr %wayToForest(1) 2015 756
+
+init_arr %wayToRess(1) 1847 857
 
 //log clear
 //log open
@@ -57,6 +60,9 @@ else
     set #n 1
     call openContainer // Откроем пак, а то топор может не найтись
     while 1 = 1
+        if hits = 0
+            call ressurect
+        end_if
         set #sz size(%wayToHome)
         if wght >= #stopOnWeight or (charPosX = %wayToHome[#sz 1] and charPosY = %wayToHome[#sz 2])
             // Набрали предельный вес
@@ -83,6 +89,9 @@ else
         send {F4}
         set timer
         while 1 = 1
+            if hits = 0
+                call ressurect
+            end_if
             call tryHide
             if lastmsg = $gonext1 or lastmsg = $gonext2 or lastmsg = $gonext3 or lastmsg = $gonext4 or lastmsg = $gonext5 or lastmsg = $gonext6
                 // идём к следующему дереву
@@ -103,18 +112,33 @@ else
     end_while
 end_if
 
+proc ressurect
+    log going to ressurect, tree was #n.0
+    call walkByWay %wayToRess
+    send_down {Tab}
+    wait 20000
+    send_up {Tab}
+    set #n.0 #n.0 + 5
+    if #n.0 > #szTrees.0
+        set #n.0 #n.0 - #szTrees.0
+    end_if
+    call walkByWay %wayToForest
+end_proc
+
 proc tryHide
-    if_not hidden
-        if war
-            send {Tab}
+    if #hiding.0 = 1
+        if_not hidden
+            if war
+                send {Tab}
+            end_if
+            send F8 3000
         end_if
-        send F8 3000
     end_if
 end_proc
 
 proc unloading
     // Откроем пак и подвинем его, чтоб не загораживал
-    call moveContainerTo 0 600
+    call moveContainerTo 50 620
 
     call dragLogs 333, 212
     //call dragLogs 348, 166 // 640x480
